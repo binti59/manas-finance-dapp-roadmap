@@ -6,8 +6,8 @@ const HomePage = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
       {/* Header */}
-      <h1 className="text-6xl md:text-8xl font-bold text-orange-400 mb-8 leading-tight">
-        MANAS Finance DApp – Your Personal Financial OS
+      <h1 className="text-5xl md:text-6xl font-bold text-orange-400 mb-8 leading-tight">
+        Xandeum Finance DApp – Your Personal Financial OS
       </h1>
       
       {/* Subtext */}

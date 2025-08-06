@@ -477,10 +477,10 @@ const RoadmapPageUpdated = () => {
         
         <div className="text-center">
           <h1 className="text-5xl md:text-6xl font-bold text-orange-400 mb-4">
-            MANAS Finance dApp Roadmap
+            Xandeum Finance dApp Roadmap
           </h1>
           <p className="text-xl text-white/80 mb-2">
-            MANAS Finance DApp – Your Personal Financial OS. Building the future of decentralized personal finance management on Xandeum.
+            Building the future of decentralized personal finance management on Xandeum.
           </p>
           <p className="text-white/60 text-sm">
             (Subject to change based on Xandeum ecosystem development)
