@@ -5,6 +5,8 @@ import { ArrowLeft, Settings, Download, Upload, Edit, Plus, Trash2, AlertCircle,
 import TaskEditModal from './TaskEditModal'
 import QuarterManager from './QuarterManager'
 import InlineProgressEditor from './InlineProgressEditor'
+import InlineTextEditor from './InlineTextEditor'
+import InlineCategoryEditor from './InlineCategoryEditor'
 import { useRoadmapPersistence } from '../hooks/usePersistence'
 
 // Complete roadmap data matching reference site, shifted to 2026
@@ -280,22 +282,36 @@ const categoryProgressColors = {
   Xandeum: 'bg-green-500'
 }
 
-const TaskCard = ({ quarter, task, isAdmin = false, onProgressEdit }) => {
+const TaskCard = ({ quarter, task, isAdmin = false, onEdit }) => {
   const categoryColor = categoryColors[task.category] || 'bg-gray-500'
   const borderColor = categoryBorderColors[task.category] || 'border-l-gray-500'
   const progressColor = categoryProgressColors[task.category] || 'bg-gray-500'
 
+  // Available categories for the dropdown
+  const availableCategories = ['Foundation', 'Financial', 'Frontend', 'Analytics', 'Security', 'Xandeum']
+
   return (
     <div className={`bg-slate-800/80 rounded-lg p-4 border-l-4 ${borderColor} relative group`}>
       <div className="flex justify-between items-start mb-2">
-        <h4 className="text-white font-semibold text-sm leading-tight">{task.title}</h4>
+        <div className="flex-1 mr-2">
+          <InlineTextEditor
+            value={task.title}
+            isEditing={onEdit.title.isEditing(task.id, quarter.id)}
+            onStartEdit={() => onEdit.title.start(task.id, quarter.id)}
+            onSave={(newTitle) => onEdit.title.save(task.id, quarter.id, newTitle)}
+            onCancel={onEdit.title.cancel}
+            placeholder="Task title..."
+            maxLength={100}
+            className="text-white font-semibold text-sm leading-tight"
+          />
+        </div>
         <div className="flex items-center space-x-2">
           <InlineProgressEditor
             progress={task.progress}
-            isEditing={onProgressEdit.isEditing(task.id, quarter.id)}
-            onStartEdit={() => onProgressEdit.start(task.id, quarter.id)}
-            onSave={(newProgress) => onProgressEdit.save(task.id, quarter.id, newProgress)}
-            onCancel={onProgressEdit.cancel}
+            isEditing={onEdit.progress.isEditing(task.id, quarter.id)}
+            onStartEdit={() => onEdit.progress.start(task.id, quarter.id)}
+            onSave={(newProgress) => onEdit.progress.save(task.id, quarter.id, newProgress)}
+            onCancel={onEdit.progress.cancel}
           />
           {isAdmin && (
             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
@@ -318,13 +334,30 @@ const TaskCard = ({ quarter, task, isAdmin = false, onProgressEdit }) => {
         </div>
       </div>
       
-      <p className="text-gray-300 text-xs mb-3 leading-relaxed">{task.description}</p>
+      <div className="mb-3">
+        <InlineTextEditor
+          value={task.description}
+          isEditing={onEdit.description.isEditing(task.id, quarter.id)}
+          onStartEdit={() => onEdit.description.start(task.id, quarter.id)}
+          onSave={(newDescription) => onEdit.description.save(task.id, quarter.id, newDescription)}
+          onCancel={onEdit.description.cancel}
+          multiline={true}
+          placeholder="Task description..."
+          maxLength={300}
+          className="text-gray-300 text-xs leading-relaxed"
+        />
+      </div>
       
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className={`px-2 py-1 rounded text-xs font-medium text-white ${categoryColor}`}>
-            {task.category}
-          </span>
+          <InlineCategoryEditor
+            value={task.category}
+            isEditing={onEdit.category.isEditing(task.id, quarter.id)}
+            onStartEdit={() => onEdit.category.start(task.id, quarter.id)}
+            onSave={(newCategory) => onEdit.category.save(task.id, quarter.id, newCategory)}
+            onCancel={onEdit.category.cancel}
+            options={availableCategories}
+          />
         </div>
         
         <div className="w-full bg-gray-700 rounded-full h-2">
@@ -354,6 +387,9 @@ const RoadmapPageUpdated = () => {
   const [editingTask, setEditingTask] = useState(null)
   const [notification, setNotification] = useState(null)
   const [editingProgress, setEditingProgress] = useState(null) // { taskId: string, quarterId: string }
+  const [editingTitle, setEditingTitle] = useState(null) // { taskId: string, quarterId: string }
+  const [editingDescription, setEditingDescription] = useState(null) // { taskId: string, quarterId: string }
+  const [editingCategory, setEditingCategory] = useState(null) // { taskId: string, quarterId: string }
 
   // Show notification
   const showNotification = (message, type = 'success') => {
@@ -406,6 +442,96 @@ const RoadmapPageUpdated = () => {
     updateLastUpdated()
     setEditingProgress(null)
     showNotification(`Progress updated to ${newProgress}%`)
+  }
+
+  // Title editing functions
+  const startEditingTitle = (taskId, quarterId) => {
+    setEditingTitle({ taskId, quarterId })
+  }
+
+  const cancelEditingTitle = () => {
+    setEditingTitle(null)
+  }
+
+  const saveTitle = (taskId, quarterId, newTitle) => {
+    setRoadmapData(prev => ({
+      ...prev,
+      quarters: prev.quarters.map(quarter =>
+        quarter.id === quarterId
+          ? {
+              ...quarter,
+              tasks: quarter.tasks.map(task =>
+                task.id === taskId
+                  ? { ...task, title: newTitle }
+                  : task
+              )
+            }
+          : quarter
+      )
+    }))
+    updateLastUpdated()
+    setEditingTitle(null)
+    showNotification('Task title updated successfully!')
+  }
+
+  // Description editing functions
+  const startEditingDescription = (taskId, quarterId) => {
+    setEditingDescription({ taskId, quarterId })
+  }
+
+  const cancelEditingDescription = () => {
+    setEditingDescription(null)
+  }
+
+  const saveDescription = (taskId, quarterId, newDescription) => {
+    setRoadmapData(prev => ({
+      ...prev,
+      quarters: prev.quarters.map(quarter =>
+        quarter.id === quarterId
+          ? {
+              ...quarter,
+              tasks: quarter.tasks.map(task =>
+                task.id === taskId
+                  ? { ...task, description: newDescription }
+                  : task
+              )
+            }
+          : quarter
+      )
+    }))
+    updateLastUpdated()
+    setEditingDescription(null)
+    showNotification('Task description updated successfully!')
+  }
+
+  // Category editing functions
+  const startEditingCategory = (taskId, quarterId) => {
+    setEditingCategory({ taskId, quarterId })
+  }
+
+  const cancelEditingCategory = () => {
+    setEditingCategory(null)
+  }
+
+  const saveCategory = (taskId, quarterId, newCategory) => {
+    setRoadmapData(prev => ({
+      ...prev,
+      quarters: prev.quarters.map(quarter =>
+        quarter.id === quarterId
+          ? {
+              ...quarter,
+              tasks: quarter.tasks.map(task =>
+                task.id === taskId
+                  ? { ...task, category: newCategory }
+                  : task
+              )
+            }
+          : quarter
+      )
+    }))
+    updateLastUpdated()
+    setEditingCategory(null)
+    showNotification(`Category updated to ${newCategory}`)
   }
 
   const generateTaskId = (title) => {
@@ -678,12 +804,35 @@ const RoadmapPageUpdated = () => {
                         quarter={quarter} 
                         task={task} 
                         isAdmin={true}
-                        onProgressEdit={{
-                          isEditing: (taskId, quarterId) => 
-                            editingProgress?.taskId === taskId && editingProgress?.quarterId === quarterId,
-                          start: startEditingProgress,
-                          save: saveProgress,
-                          cancel: cancelEditingProgress
+                        onEdit={{
+                          progress: {
+                            isEditing: (taskId, quarterId) => 
+                              editingProgress?.taskId === taskId && editingProgress?.quarterId === quarterId,
+                            start: startEditingProgress,
+                            save: saveProgress,
+                            cancel: cancelEditingProgress
+                          },
+                          title: {
+                            isEditing: (taskId, quarterId) => 
+                              editingTitle?.taskId === taskId && editingTitle?.quarterId === quarterId,
+                            start: startEditingTitle,
+                            save: saveTitle,
+                            cancel: cancelEditingTitle
+                          },
+                          description: {
+                            isEditing: (taskId, quarterId) => 
+                              editingDescription?.taskId === taskId && editingDescription?.quarterId === quarterId,
+                            start: startEditingDescription,
+                            save: saveDescription,
+                            cancel: cancelEditingDescription
+                          },
+                          category: {
+                            isEditing: (taskId, quarterId) => 
+                              editingCategory?.taskId === taskId && editingCategory?.quarterId === quarterId,
+                            start: startEditingCategory,
+                            save: saveCategory,
+                            cancel: cancelEditingCategory
+                          }
                         }}
                       />
                     ))}
@@ -723,12 +872,35 @@ const RoadmapPageUpdated = () => {
                         key={task.id} 
                         quarter={quarter} 
                         task={task}
-                        onProgressEdit={{
-                          isEditing: (taskId, quarterId) => 
-                            editingProgress?.taskId === taskId && editingProgress?.quarterId === quarterId,
-                          start: startEditingProgress,
-                          save: saveProgress,
-                          cancel: cancelEditingProgress
+                        onEdit={{
+                          progress: {
+                            isEditing: (taskId, quarterId) => 
+                              editingProgress?.taskId === taskId && editingProgress?.quarterId === quarterId,
+                            start: startEditingProgress,
+                            save: saveProgress,
+                            cancel: cancelEditingProgress
+                          },
+                          title: {
+                            isEditing: (taskId, quarterId) => 
+                              editingTitle?.taskId === taskId && editingTitle?.quarterId === quarterId,
+                            start: startEditingTitle,
+                            save: saveTitle,
+                            cancel: cancelEditingTitle
+                          },
+                          description: {
+                            isEditing: (taskId, quarterId) => 
+                              editingDescription?.taskId === taskId && editingDescription?.quarterId === quarterId,
+                            start: startEditingDescription,
+                            save: saveDescription,
+                            cancel: cancelEditingDescription
+                          },
+                          category: {
+                            isEditing: (taskId, quarterId) => 
+                              editingCategory?.taskId === taskId && editingCategory?.quarterId === quarterId,
+                            start: startEditingCategory,
+                            save: saveCategory,
+                            cancel: cancelEditingCategory
+                          }
                         }}
                       />
                     ))}
