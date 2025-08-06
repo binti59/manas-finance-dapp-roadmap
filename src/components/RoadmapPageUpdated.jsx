@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Settings, Download, Upload, Edit, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Settings, Download, Upload, Edit, Plus, Trash2, AlertCircle, CheckCircle } from 'lucide-react'
 import TaskEditModal from './TaskEditModal'
 import QuarterManager from './QuarterManager'
+import { useRoadmapPersistence } from '../hooks/usePersistence'
 
 // Complete roadmap data matching reference site, shifted to 2026
 const initialRoadmapData = {
@@ -331,24 +332,42 @@ const TaskCard = ({ quarter, task, isAdmin = false }) => {
 }
 
 const RoadmapPageUpdated = () => {
-  const [roadmapData, setRoadmapData] = useState(() => {
-    const saved = localStorage.getItem('roadmapData')
-    return saved ? JSON.parse(saved) : initialRoadmapData
-  })
+  // Use enhanced persistence hook
+  const {
+    data: roadmapData,
+    setData: setRoadmapData,
+    loading,
+    error,
+    saving,
+    save: manualSave
+  } = useRoadmapPersistence(initialRoadmapData)
   
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
+  const [notification, setNotification] = useState(null)
 
-  useEffect(() => {
-    localStorage.setItem('roadmapData', JSON.stringify(roadmapData))
-  }, [roadmapData])
+  // Show notification
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
+  }
 
   const updateLastUpdated = () => {
     setRoadmapData(prev => ({
       ...prev,
       lastUpdated: new Date().toISOString().split('T')[0]
     }))
+  }
+
+  // Manual save function
+  const handleManualSave = async () => {
+    const result = await manualSave()
+    if (result) {
+      showNotification('Data saved successfully!')
+    } else {
+      showNotification('Error saving data', 'error')
+    }
   }
 
   const generateTaskId = (title) => {
@@ -384,22 +403,26 @@ const RoadmapPageUpdated = () => {
       })
     }))
     updateLastUpdated()
+    showNotification(editingTask && editingTask.id ? 'Task updated successfully!' : 'Task added successfully!')
   }
 
   const deleteTask = (taskData) => {
-    setRoadmapData(prev => ({
-      ...prev,
-      quarters: prev.quarters.map(quarter => {
-        if (quarter.id === taskData.quarterId) {
-          return {
-            ...quarter,
-            tasks: quarter.tasks.filter(task => task.id !== taskData.id)
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      setRoadmapData(prev => ({
+        ...prev,
+        quarters: prev.quarters.map(quarter => {
+          if (quarter.id === taskData.quarterId) {
+            return {
+              ...quarter,
+              tasks: quarter.tasks.filter(task => task.id !== taskData.id)
+            }
           }
-        }
-        return quarter
-      })
-    }))
-    updateLastUpdated()
+          return quarter
+        })
+      }))
+      updateLastUpdated()
+      showNotification('Task deleted successfully!')
+    }
   }
 
   const openEditModal = (task, quarterId) => {
@@ -426,6 +449,7 @@ const RoadmapPageUpdated = () => {
     link.download = `roadmap-config-${roadmapData.lastUpdated}.json`
     link.click()
     URL.revokeObjectURL(url)
+    showNotification('Configuration exported successfully!')
   }
 
   const importConfig = (event) => {
@@ -436,8 +460,9 @@ const RoadmapPageUpdated = () => {
         try {
           const importedData = JSON.parse(e.target.result)
           setRoadmapData(importedData)
+          showNotification('Configuration imported successfully!')
         } catch (error) {
-          alert('Error importing configuration. Please check the file format.')
+          showNotification('Error importing configuration: Invalid JSON file', 'error')
         }
       }
       reader.readAsText(file)
@@ -454,8 +479,26 @@ const RoadmapPageUpdated = () => {
     }
   }, [])
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-white text-xl">Loading roadmap data...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen px-4 py-8">
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+          notification.type === 'error' ? 'bg-red-600' : 'bg-green-600'
+        } text-white flex items-center space-x-2`}>
+          {notification.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
+          <span>{notification.message}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-12">
         <div className="flex justify-between items-center mb-8">
@@ -466,13 +509,46 @@ const RoadmapPageUpdated = () => {
             </Button>
           </Link>
           
-          <Button
-            onClick={() => setShowAdminPanel(!showAdminPanel)}
-            className="bg-green-600 hover:bg-green-700 text-white"
-            title="Admin Panel"
-          >
-            <Settings size={16} />
-          </Button>
+          <div className="flex items-center space-x-2">
+            {/* Persistence Status */}
+            <div className="flex items-center space-x-2 text-sm">
+              {saving && (
+                <span className="text-yellow-400 flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400 mr-1"></div>
+                  Saving...
+                </span>
+              )}
+              {error && (
+                <span className="text-red-400 flex items-center">
+                  <AlertCircle size={16} className="mr-1" />
+                  Error: {error}
+                </span>
+              )}
+              {!saving && !error && (
+                <span className="text-green-400 flex items-center">
+                  <CheckCircle size={16} className="mr-1" />
+                  Saved
+                </span>
+              )}
+            </div>
+
+            <Button
+              onClick={handleManualSave}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={saving}
+            >
+              <Download size={16} className="mr-1" />
+              Save Now
+            </Button>
+
+            <Button
+              onClick={() => setShowAdminPanel(!showAdminPanel)}
+              className="bg-green-600 hover:bg-green-700 text-white"
+              title="Admin Panel"
+            >
+              <Settings size={16} />
+            </Button>
+          </div>
         </div>
         
         <div className="text-center">
