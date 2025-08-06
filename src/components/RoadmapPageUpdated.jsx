@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Settings, Download, Upload, Edit, Plus, Trash2, AlertCircle, CheckCircle } from 'lucide-react'
 import TaskEditModal from './TaskEditModal'
 import QuarterManager from './QuarterManager'
+import InlineProgressEditor from './InlineProgressEditor'
 import { useRoadmapPersistence } from '../hooks/usePersistence'
 
 // Complete roadmap data matching reference site, shifted to 2026
@@ -279,7 +280,7 @@ const categoryProgressColors = {
   Xandeum: 'bg-green-500'
 }
 
-const TaskCard = ({ quarter, task, isAdmin = false }) => {
+const TaskCard = ({ quarter, task, isAdmin = false, onProgressEdit }) => {
   const categoryColor = categoryColors[task.category] || 'bg-gray-500'
   const borderColor = categoryBorderColors[task.category] || 'border-l-gray-500'
   const progressColor = categoryProgressColors[task.category] || 'bg-gray-500'
@@ -289,7 +290,13 @@ const TaskCard = ({ quarter, task, isAdmin = false }) => {
       <div className="flex justify-between items-start mb-2">
         <h4 className="text-white font-semibold text-sm leading-tight">{task.title}</h4>
         <div className="flex items-center space-x-2">
-          <span className="text-white font-bold text-sm">{task.progress}%</span>
+          <InlineProgressEditor
+            progress={task.progress}
+            isEditing={onProgressEdit.isEditing(task.id, quarter.id)}
+            onStartEdit={() => onProgressEdit.start(task.id, quarter.id)}
+            onSave={(newProgress) => onProgressEdit.save(task.id, quarter.id, newProgress)}
+            onCancel={onProgressEdit.cancel}
+          />
           {isAdmin && (
             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
               <Button
@@ -346,6 +353,7 @@ const RoadmapPageUpdated = () => {
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [notification, setNotification] = useState(null)
+  const [editingProgress, setEditingProgress] = useState(null) // { taskId: string, quarterId: string }
 
   // Show notification
   const showNotification = (message, type = 'success') => {
@@ -368,6 +376,36 @@ const RoadmapPageUpdated = () => {
     } else {
       showNotification('Error saving data', 'error')
     }
+  }
+
+  // Progress editing functions
+  const startEditingProgress = (taskId, quarterId) => {
+    setEditingProgress({ taskId, quarterId })
+  }
+
+  const cancelEditingProgress = () => {
+    setEditingProgress(null)
+  }
+
+  const saveProgress = (taskId, quarterId, newProgress) => {
+    setRoadmapData(prev => ({
+      ...prev,
+      quarters: prev.quarters.map(quarter =>
+        quarter.id === quarterId
+          ? {
+              ...quarter,
+              tasks: quarter.tasks.map(task =>
+                task.id === taskId
+                  ? { ...task, progress: newProgress }
+                  : task
+              )
+            }
+          : quarter
+      )
+    }))
+    updateLastUpdated()
+    setEditingProgress(null)
+    showNotification(`Progress updated to ${newProgress}%`)
   }
 
   const generateTaskId = (title) => {
@@ -635,7 +673,19 @@ const RoadmapPageUpdated = () => {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {quarter.tasks.map(task => (
-                      <TaskCard key={task.id} quarter={quarter} task={task} isAdmin={true} />
+                      <TaskCard 
+                        key={task.id} 
+                        quarter={quarter} 
+                        task={task} 
+                        isAdmin={true}
+                        onProgressEdit={{
+                          isEditing: (taskId, quarterId) => 
+                            editingProgress?.taskId === taskId && editingProgress?.quarterId === quarterId,
+                          start: startEditingProgress,
+                          save: saveProgress,
+                          cancel: cancelEditingProgress
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
@@ -667,11 +717,22 @@ const RoadmapPageUpdated = () => {
               
               {/* Tasks Grid */}
               <div className="flex-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {quarter.tasks.map(task => (
-                    <TaskCard key={task.id} quarter={quarter} task={task} />
-                  ))}
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {quarter.tasks.map(task => (
+                      <TaskCard 
+                        key={task.id} 
+                        quarter={quarter} 
+                        task={task}
+                        onProgressEdit={{
+                          isEditing: (taskId, quarterId) => 
+                            editingProgress?.taskId === taskId && editingProgress?.quarterId === quarterId,
+                          start: startEditingProgress,
+                          save: saveProgress,
+                          cancel: cancelEditingProgress
+                        }}
+                      />
+                    ))}
+                  </div>
               </div>
             </div>
           ))}
