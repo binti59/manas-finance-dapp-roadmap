@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { FileText, Building, Zap, DollarSign, Map } from 'lucide-react'
+import { FileText, Building, Zap, DollarSign, Map, ExternalLink } from 'lucide-react'
 
 const HomePage = () => {
   return (
@@ -58,8 +58,9 @@ const HomePage = () => {
         </Link>
       </div>
       
-      {/* Development Roadmap - Separate row */}
-      <div className="mt-4 max-w-md w-full">
+      {/* Development Roadmap and Demo - Two column layout */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl w-full">
+        {/* Development Roadmap */}
         <Link to="/roadmap">
           <Button className="w-full h-16 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white text-sm font-medium rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
             <div className="flex items-center space-x-2">
@@ -68,6 +69,16 @@ const HomePage = () => {
             </div>
           </Button>
         </Link>
+        
+        {/* Live Demo */}
+        <a href="https://pcrckhvz.manus.space/" target="_blank" rel="noopener noreferrer">
+          <Button className="w-full h-16 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white text-sm font-medium rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+            <div className="flex items-center space-x-2">
+              <ExternalLink size={20} />
+              <span>Live Demo</span>
+            </div>
+          </Button>
+        </a>
       </div>
     </div>
   )
