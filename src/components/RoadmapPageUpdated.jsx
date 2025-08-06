@@ -373,6 +373,9 @@ const TaskCard = ({ quarter, task, isAdmin = false, onEdit }) => {
 
 const RoadmapPageUpdated = () => {
   // Use enhanced persistence hook
+  // Available categories
+  const categories = ['Foundation', 'Financial', 'Frontend', 'Analytics', 'Security', 'Xandeum']
+
   const {
     data: roadmapData,
     setData: setRoadmapData,
@@ -850,6 +853,7 @@ const RoadmapPageUpdated = () => {
         isOpen={showTaskModal}
         onClose={closeTaskModal}
         onSave={saveTask}
+        categories={categories}
       />
 
       {/* Roadmap Content */}
